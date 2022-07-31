@@ -91,6 +91,12 @@ Set to nil to disable styling the headlines."
           (const :tag "Hide all stars" t)
           (const :tag "Hide leading stars" leading)))
 
+(defcustom org-modern-leading-stars nil
+  "Replacement string for each leading headline star.
+Set to nil to disable styling of leading stars.
+Requires `org-modern-hide-stars' to be nil in order to take effect."
+  :type 'string)
+
 (defcustom org-modern-timestamp t
   "Prettify time stamps, e.g. <2022-03-01>.
 Set to nil to disable styling the time stamps. In order to use custom
@@ -218,6 +224,11 @@ Set to nil to disable the indicator."
 You can specify a font `:family'. The font families `Iosevka', `Hack' and
 `DejaVu Sans' give decent results.")
 
+(defface org-modern-leading
+  '((t :inherit org-modern-symbol))
+  "Face used for leading stars, if they are not hidden.
+By default it inherits from `org-modern-symbol'.")
+
 (defface org-modern-label
   `((t :height 0.9 :width condensed :weight regular :underline nil))
   "Parent face for labels.")
@@ -296,6 +307,7 @@ You can specify a font `:family'. The font families `Iosevka', `Hack' and
 
 (defvar-local org-modern--font-lock-keywords nil)
 (defvar-local org-modern--star-cache nil)
+(defvar-local org-modern--leading-star-cache nil)
 (defvar-local org-modern--checkbox-cache nil)
 (defvar-local org-modern--progress-cache nil)
 
@@ -419,6 +431,13 @@ You can specify a font `:family'. The font families `Iosevka', `Hack' and
      (aref org-modern--star-cache
            (min (1- (length org-modern--star-cache)) level)))))
 
+(defun org-modern--leading-stars ()
+  "Prettify headline stars."
+  (let ((level (- (match-end 1) (match-beginning 1))))
+    (put-text-property
+     (match-beginning 1) (match-end 1) 'display
+     (apply 'concat (make-list level org-modern--leading-star-cache)))))
+
 (defun org-modern--table ()
   "Prettify vertical table lines."
   (save-excursion
@@ -526,6 +545,9 @@ You can specify a font `:family'. The font families `Iosevka', `Hack' and
      (vconcat (mapcar
                (lambda (x) (propertize x 'face 'org-modern-symbol))
                org-modern-star))
+     org-modern--leading-star-cache
+     (when org-modern-leading-stars
+       (propertize org-modern-leading-stars 'face 'org-modern-leading))
      org-modern--progress-cache
      (vconcat (mapcar
                (lambda (x) (concat " " (propertize x 'face 'org-modern-symbol) " "))
@@ -563,7 +585,8 @@ You can specify a font `:family'. The font families `Iosevka', `Hack' and
         `(("^\\(\\**\\)\\(\\*\\) "
            ,@(and (not (eq org-modern-hide-stars t)) org-modern-star '((0 (org-modern--star))))
            ,@(and (eq org-modern-hide-stars 'leading) '((1 '(face nil invisible t))))
-           ,@(and (eq org-modern-hide-stars t) '((0 '(face nil invisible t)))))))
+           ,@(and (eq org-modern-hide-stars t) '((0 '(face nil invisible t))))
+           ,@(and org-modern-leading-stars (not org-modern-hide-stars) '((1 (org-modern--leading-stars)))))))
       (when org-modern-horizontal-rule
         `(("^[ \t]*-\\{5,\\}$" 0
            '(face org-modern-horizontal-rule display
